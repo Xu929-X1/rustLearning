@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::{self, Read}};
+use std::{
+    collections::HashMap,
+    io::{self, Read, Write}, borrow::BorrowMut,
+};
 
 use mio::{tcp::TcpListener, tcp::TcpStream, Events, Poll, PollOpt, Ready, Token};
 fn main() {
@@ -7,7 +10,9 @@ fn main() {
     //for maintaining the token socket pair
     let mut counter: usize = 0;
     let mut sockets: HashMap<Token, TcpStream> = HashMap::new();
-    let mut buffer = [0 as u8; 1024]; //1k buffer
+    let mut response: HashMap<Token, usize> = HashMap::new();
+    let mut requests: HashMap<Token, Vec<u8>> = HashMap::new();
+    let mut buffer = [0; 1024]; //1k buffer
 
     let poll = Poll::new().unwrap();
     //We activate by edge for readable events, not level
@@ -50,24 +55,41 @@ fn main() {
                             }
                         }
                     }
+                    
                 }
-                token if event.readiness().is_readable() => loop {
-                    let read = sockets.get_mut(&token).unwrap().read(&mut buffer);
-                    match read {
-                        Ok(0) => {
-                            // Successful read of zero bytes means connection is closed
-                            sockets.remove(&token);
-                            break;
-                        },
-                        Ok(len) => {
-                            // Now do something with &buffer[0..len]
-                            println!("Read {} bytes for token {}", len, token.0);
-                        },
-                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => break,
-                        Err(e) => panic!("Unexpected error: {}", e)
+                token if event.readiness().is_readable() => {
+                    loop {
+                        let read = sockets.get_mut(&token).unwrap().read(&mut buffer);
+                        match read {
+                            Ok(0) => {
+                                // Successful read of zero bytes means connection is closed
+                                sockets.remove(&token);
+                                break;
+                            }
+                            Ok(len) => {
+                                let req = requests.get_mut(&token).unwrap();
+                                for b in &buffer[0..len] {
+                                    req.push(*b);
+                                }
+                            }
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => break,
+                            Err(e) => panic!("Unexpected error: {}", e),
+                        }
                     }
-                },
-                _=>()
+
+                }
+                token if event.readiness().is_writable() => {
+                    let n_bytes = response[&token];
+                    let message = format!("Received {} bytes of data", n_bytes);
+                    sockets
+                        .get_mut(&token)
+                        .unwrap()
+                        .write_all(message.as_bytes())
+                        .unwrap();
+                    response.remove(&token);
+                    sockets.remove(&token);
+                }
+                _ => unreachable!(),
             }
         }
     }
