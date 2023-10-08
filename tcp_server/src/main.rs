@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{self, Read, Write}, borrow::BorrowMut,
+    io::{self, Read, Write},
 };
 
 use mio::{tcp::TcpListener, tcp::TcpStream, Events, Poll, PollOpt, Ready, Token};
