@@ -1,7 +1,7 @@
-use image::png::PNGEncoder;
+use image::png::PngEncoder;
 use image::ColorType;
 use num::Complex;
-use std::env;
+use std::{env, process};
 use std::{fs::File, str::FromStr};
 
 fn main() {
@@ -34,11 +34,12 @@ fn main() {
                 let band_lower_right =
                     pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
 
-                spawner.spawn(move |_|{
+                spawner.spawn(move |_| {
                     render(band, band_bounds, band_upper_left, band_lower_right);
                 });
             }
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     write_image(&args[1], &pixels, bounds).expect("Error writing to PNG file");
@@ -113,8 +114,11 @@ fn write_image(
 ) -> Result<(), std::io::Error> {
     let output = File::create(filename)?;
 
-    let encoder = PNGEncoder::new(output);
-    encoder.encode(pixels, bounds.0 as u32, bounds.1 as u32, ColorType::Gray(8))?;
+    let encoder = PngEncoder::new(output);
+    encoder.encode(pixels, bounds.0 as u32, bounds.1 as u32, ColorType::L16).unwrap_or_else(|e|{
+        println!("Unexpected error: {}", e);
+        process::exit(1);
+    });
 
     Ok(())
 }
