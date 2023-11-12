@@ -1,17 +1,19 @@
 use crate::Document;
 use crate::Row;
 use crate::Terminal;
+use std::env;
 use termion::event::Key;
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
-    cursor_position: CursorPosition,
+    cursor_position: Position,
     document: Document,
+    offset: Position,
 }
 #[derive(Default)]
-pub struct CursorPosition {
-    pub x: u16,
-    pub y: u16,
+pub struct Position {
+    pub x: usize,
+    pub y: usize,
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -35,40 +37,56 @@ impl Editor {
     }
     //this is static method, lack of the &self indictor
     pub fn default() -> Self {
+        let args: Vec<String> = env::args().collect();
+
+        let document = if args.len() > 1 {
+            let filename = &args[1];
+
+            Document::open(filename).unwrap_or_default()
+        } else {
+            Document::default()
+        };
+
         Self {
             should_quit: false,
             terminal: Terminal::default().expect("Failed to initialize terminal"),
-            cursor_position: CursorPosition::default(),
-            document: Document::open(),
+            cursor_position: Position::default(),
+            document: document,
+            offset: Position::default(),
         }
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::cursor_hide();
-        Terminal::cursor_position(&CursorPosition::default());
+        Terminal::cursor_position(&Position::default());
         if self.should_quit {
             Terminal::clear_screen();
             println!("Goodbye. \r");
         } else {
             self.draw_rows();
-            Terminal::cursor_position(&self.cursor_position);
+            //now the cursor position refers to the position the cursor is in the file, we need to normalize it by sub the offset
+            Terminal::cursor_position(&Position {
+                x: self.cursor_position.x.saturating_sub(self.offset.x),
+                y: self.cursor_position.y.saturating_sub(self.offset.y),
+            });
         }
         Terminal::cursor_show();
         Terminal::flush()
     }
 
     pub fn draw_row(&self, row: &Row) {
-        let start = 0;
-        let end = self.terminal.size().width as usize;
+        let width = self.terminal.size().width as usize;
+        let start = self.offset.x;
+        let end = width + self.offset.x;
         let row = row.render(start, end);
-        println!("{}", row);
+        println!("{}\r", row);
     }
 
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
         for terminal_row in 0..height - 1 {
             Terminal::clear_row();
-            if let Some(row) = self.document.row(terminal_row as usize) {
+            if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
                 self.draw_row(row);
             } else if self.document.is_empty() && terminal_row == height / 3 {
                 self.draw_welcome_message();
@@ -103,25 +121,26 @@ impl Editor {
             | Key::Home => self.move_cursor(pressed_key),
             _ => (),
         }
+        self.scroll();
         Ok(())
     }
 
     fn move_cursor(&mut self, key: Key) {
-        let CursorPosition { mut x, mut y } = self.cursor_position;
+        let Position { mut x, mut y } = self.cursor_position;
         let size = self.terminal.size();
-        let height = size.height.saturating_sub(1);
-        let width = size.width.saturating_sub(1);
+        let height = self.document.len();
+        let width = size.width.saturating_sub(1) as usize;
         match key {
             Key::Up => y = y.saturating_sub(1),
             Key::Down => {
                 if y < height {
-                    y.saturating_add(1);
+                    y = y.saturating_add(1);
                 }
             }
             Key::Left => x = x.saturating_sub(1),
             Key::Right => {
                 if x < width {
-                    x.saturating_add(1);
+                    x = x.saturating_add(1);
                 }
             }
             Key::PageDown => y = height,
@@ -130,7 +149,26 @@ impl Editor {
             Key::End => x = width,
             _ => (),
         }
-        self.cursor_position = CursorPosition { x, y }
+        self.cursor_position = Position { x, y }
+    }
+
+    fn scroll(&mut self) {
+        let Position { x, y } = self.cursor_position;
+        let width = self.terminal.size().width as usize;
+        let height = self.terminal.size().height as usize;
+
+        let offset = &mut self.offset;
+        if y < offset.y {
+            offset.y = y;
+        } else if y >= offset.y.saturating_add(height) {
+            offset.y = y.saturating_sub(height).saturating_add(1);
+        }
+
+        if x < offset.x {
+            offset.x = x;
+        } else if x >= offset.x.saturating_add(width) {
+            offset.x = x.saturating_sub(width).saturating_add(1);
+        }
     }
 }
 

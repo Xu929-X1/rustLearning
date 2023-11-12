@@ -2,7 +2,7 @@ use std::io::Error;
 use std::io::{self, stdout, Write};
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
-use crate::CursorPosition;
+use crate::Position;
 pub struct Size {
     pub width: u16,
     pub height: u16,
@@ -33,11 +33,13 @@ impl Terminal {
         print!("{}", termion::clear::All)
     }
 
-    pub fn cursor_position(position: &CursorPosition) {
-        let CursorPosition { mut x, mut y } = position;
+    pub fn cursor_position(position: &Position) {
+        let Position { mut x, mut y } = position;
         //prevent overflow
-        x = x.saturating_add(1) as u16;
-        y = y.saturating_add(1) as u16;
+        x = x.saturating_add(1);
+        y = y.saturating_add(1);
+        let x = x as u16;
+        let y = y as u16;
 
         println!("{}", termion::cursor::Goto(x, y));
     }
