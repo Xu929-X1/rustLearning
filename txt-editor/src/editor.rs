@@ -101,7 +101,7 @@ impl Editor {
     }
 
     fn draw_rows(&self) {
-        let height = self.terminal.size().height - 1;
+        let height = self.terminal.size().height;
         for terminal_row in 0..height{
             Terminal::clear_row();
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
