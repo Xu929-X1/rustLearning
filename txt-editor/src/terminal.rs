@@ -1,5 +1,6 @@
 use std::io::Error;
 use std::io::{self, stdout, Write};
+use termion::color;
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 use crate::Position;
@@ -61,10 +62,18 @@ impl Terminal {
     }
 
     pub fn cursor_show() {
-        print!("{}", termion::cursor::Show);
+        print!("{}", "termion::cursor::Show");
     }
 
     pub fn clear_row() {
         print!("{}", termion::clear::CurrentLine);
+    }
+
+    pub fn set_bg_color (color: color::Rgb){
+        print!("{}", color::Bg(color));
+    }
+
+    pub fn reset_bg_color(){
+        print!("{}", color::Bg(color::Reset));
     }
 }

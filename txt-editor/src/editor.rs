@@ -2,7 +2,11 @@ use crate::Document;
 use crate::Row;
 use crate::Terminal;
 use std::env;
+use termion::color;
 use termion::event::Key;
+
+const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);            
+
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
@@ -64,6 +68,8 @@ impl Editor {
             println!("Goodbye. \r");
         } else {
             self.draw_rows();
+            self.draw_status_bar();
+            self.draw_message_bar();
             //now the cursor position refers to the position the cursor is in the file, we need to normalize it by sub the offset
             Terminal::cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
@@ -74,6 +80,7 @@ impl Editor {
         Terminal::flush()
     }
 
+
     pub fn draw_row(&self, row: &Row) {
         let width = self.terminal.size().width as usize;
         let start = self.offset.x;
@@ -82,8 +89,19 @@ impl Editor {
         println!("{}\r", row);
     }
 
+    fn draw_status_bar(&self){
+        let spaces = " ".repeat(self.terminal.size().width as usize) ;
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        println!("{}\r", spaces);   
+        Terminal::reset_bg_color()
+    }
+
+    fn draw_message_bar(&self){
+        Terminal::clear_row();
+    }
+
     fn draw_rows(&self) {
-        let height = self.terminal.size().height;
+        let height = self.terminal.size().height - 1;
         for terminal_row in 0..height{
             Terminal::clear_row();
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
@@ -128,7 +146,6 @@ impl Editor {
     fn move_cursor(&mut self, key: Key) {
         let terminal_height = self.terminal.size().height as usize;
         let Position { mut x, mut y } = self.cursor_position;
-        let size = self.terminal.size();
         let height = self.document.len();
         let mut width = if let Some(row) = self.document.row(y) {
             row.len()
@@ -137,7 +154,7 @@ impl Editor {
         };
         match key {
             Key::Up => {
-                if y < 0{
+                if y == 0{
                     y = 0;
                 }else{
                     y = y.saturating_sub(1);
