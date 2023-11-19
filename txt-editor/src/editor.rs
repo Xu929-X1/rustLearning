@@ -2,17 +2,34 @@ use crate::Document;
 use crate::Row;
 use crate::Terminal;
 use std::env;
+use std::time::Duration;
+use std::time::Instant;
 use termion::color;
 use termion::event::Key;
 
-const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);            
+const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
 const STATUS_FG_COLOR: color::Rgb = color::Rgb(63, 63, 63);
+
+struct StatusMessage {
+    text: String,
+    time: Instant,
+}
+
+impl StatusMessage {
+    fn from(message: String) -> Self {
+        Self {
+            text: message,
+            time: Instant::now(),
+        }
+    }
+}
 pub struct Editor {
     should_quit: bool,
     terminal: Terminal,
     cursor_position: Position,
     document: Document,
     offset: Position,
+    status_message: StatusMessage
 }
 #[derive(Default)]
 pub struct Position {
@@ -21,6 +38,7 @@ pub struct Position {
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 
 impl Editor {
     pub fn run(&mut self) {
@@ -39,12 +57,18 @@ impl Editor {
 
     pub fn default() -> Self {
         let args: Vec<String> = env::args().collect();
+        let mut init_status = String::from("HELP: Ctrl-Q = quit");
 
         let document = if args.len() > 1 {
             let filename = &args[1];
-
-            Document::open(filename).unwrap_or_default()
-        } else {
+            let doc = Document::open(filename);
+            if doc.is_ok(){
+                doc.unwrap()
+            }else{
+                init_status = format!("Error: Could not open file {}", &filename);
+                Document::default()
+            }
+        }else{
             Document::default()
         };
 
@@ -54,6 +78,7 @@ impl Editor {
             cursor_position: Position::default(),
             document: document,
             offset: Position::default(),
+            status_message: StatusMessage::from(init_status)
         }
     }
 
@@ -66,7 +91,7 @@ impl Editor {
         } else {
             self.draw_rows();
             self.draw_status_bar();
-            self.draw_message_bar();
+            // self.draw_message_bar();
             //now the cursor position refers to the position the cursor is in the file, we need to normalize it by sub the offset
             Terminal::cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
@@ -76,7 +101,6 @@ impl Editor {
         Terminal::cursor_show();
         Terminal::flush()
     }
-
 
     pub fn draw_row(&self, row: &Row) {
         let width = self.terminal.size().width as usize;
@@ -88,7 +112,7 @@ impl Editor {
 
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
-        for terminal_row in 0..height{
+        for terminal_row in 0..height {
             Terminal::clear_row();
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
                 self.draw_row(row);
@@ -100,20 +124,24 @@ impl Editor {
         }
     }
 
-    fn draw_status_bar(&self){
+    fn draw_status_bar(&self) {
         let mut status;
         let width = self.terminal.size().width as usize;
         let mut filename = "[No Name]".to_string();
-        if let Some(name) = &self.document.file_name{
+        if let Some(name) = &self.document.file_name {
             filename = name.clone();
             filename.truncate(20);
         }
 
-        let line_indicator = format!("{}-{}", self.cursor_position.y.saturating_add(1), self.document.len());
-        status = format!("{} - {} lines", filename, self.document.len());
+        status = format!("{}-{} lines", filename, self.document.len());
+        let line_indicator = format!(
+            "{}-{}",
+            self.cursor_position.y.saturating_add(1),
+            self.document.len()
+        );
         let len = status.len() + line_indicator.len();
 
-        if width > len{
+        if width > len {
             status.push_str(&" ".repeat(width - len))
         }
         status = format!("{}{}", status, line_indicator);
@@ -125,8 +153,15 @@ impl Editor {
         Terminal::reset_bg_color()
     }
 
-    fn draw_message_bar(&self){
+    fn draw_message_bar(&self) {
         Terminal::clear_row();
+        let message = &self.status_message;
+        if Instant::now() - message.time < Duration::new(5, 0){
+            let mut text = message.text.clone();
+            text.truncate(self.terminal.size().width as usize);
+            print!("{}", text);
+        }
+
     }
 
     fn draw_welcome_message(&self) {
@@ -143,7 +178,7 @@ impl Editor {
     fn process_keypress(&mut self) -> Result<(), std::io::Error> {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
-            Key::Ctrl('c') => self.should_quit = true,
+            Key::Ctrl('q') => self.should_quit = true,
             Key::Up
             | Key::Down
             | Key::Right
