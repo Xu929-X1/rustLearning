@@ -30,9 +30,6 @@ impl Editor {
             }
             if self.should_quit {
                 break;
-            } else {
-                self.draw_rows();
-                Terminal::cursor_position(&self.cursor_position);
             }
             if let Err(error) = self.process_keypress() {
                 die(error);
@@ -91,7 +88,6 @@ impl Editor {
 
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
-        dbg!(&self.terminal.size().width, &self.terminal.size().height);
         for terminal_row in 0..height{
             Terminal::clear_row();
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
@@ -154,18 +150,10 @@ impl Editor {
             0
         };
         match key {
-            Key::Up => {
-                if y == 0{
-                    y = 0;
-                }else{
-                    y = y.saturating_sub(1);
-                }
-            },
+            Key::Up => y = y.saturating_sub(1),
             Key::Down => {
                 if y < height {
                     y = y.saturating_add(1);
-                }else{
-                    y = height;
                 }
             }
             Key::Left => {
@@ -190,7 +178,7 @@ impl Editor {
             }
             Key::PageDown => {
                 y = if y.saturating_add(terminal_height) < height {
-                    y + terminal_height
+                    y + terminal_height as usize
                 } else {
                     height
                 }
