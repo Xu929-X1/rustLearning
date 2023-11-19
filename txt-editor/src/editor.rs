@@ -109,12 +109,14 @@ impl Editor {
             filename.truncate(20);
         }
 
+        let line_indicator = format!("{}-{}", self.cursor_position.y.saturating_add(1), self.document.len());
         status = format!("{} - {} lines", filename, self.document.len());
+        let len = status.len() + line_indicator.len();
 
-        if width > status.len(){
-            status.push_str(&" ".repeat(width - status.len()))
+        if width > len{
+            status.push_str(&" ".repeat(width - len))
         }
-
+        status = format!("{}{}", status, line_indicator);
         status.truncate(width);
         Terminal::set_bg_color(STATUS_BG_COLOR);
         Terminal::set_fg_color(STATUS_FG_COLOR);
