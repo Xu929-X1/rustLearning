@@ -39,7 +39,7 @@ impl Editor {
             }
         }
     }
-    //this is static method, lack of the &self indictor
+
     pub fn default() -> Self {
         let args: Vec<String> = env::args().collect();
 
@@ -89,19 +89,9 @@ impl Editor {
         println!("{}\r", row);
     }
 
-    fn draw_status_bar(&self){
-        let spaces = " ".repeat(self.terminal.size().width as usize) ;
-        Terminal::set_bg_color(STATUS_BG_COLOR);
-        println!("{}\r", spaces);   
-        Terminal::reset_bg_color()
-    }
-
-    fn draw_message_bar(&self){
-        Terminal::clear_row();
-    }
-
     fn draw_rows(&self) {
         let height = self.terminal.size().height;
+        dbg!(&self.terminal.size().width, &self.terminal.size().height);
         for terminal_row in 0..height{
             Terminal::clear_row();
             if let Some(row) = self.document.row(terminal_row as usize + self.offset.y) {
@@ -112,6 +102,17 @@ impl Editor {
                 println!("~\r");
             }
         }
+    }
+
+    fn draw_status_bar(&self){
+        let spaces = " ".repeat(self.terminal.size().width as usize) ;
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        println!("{}\r", spaces);   
+        Terminal::reset_bg_color()
+    }
+
+    fn draw_message_bar(&self){
+        Terminal::clear_row();
     }
 
     fn draw_welcome_message(&self) {

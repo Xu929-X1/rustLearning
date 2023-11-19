@@ -25,7 +25,7 @@ impl Terminal {
             _stdout: stdout().into_raw_mode()?,
         })
     }
-    //getter for size
+
     pub fn size(&self) -> &Size {
         &self.size
     }
@@ -62,7 +62,7 @@ impl Terminal {
     }
 
     pub fn cursor_show() {
-        print!("{}", "termion::cursor::Show");
+        print!("{}", termion::cursor::Show);
     }
 
     pub fn clear_row() {
