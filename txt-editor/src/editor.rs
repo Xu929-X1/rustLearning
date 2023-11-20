@@ -91,7 +91,7 @@ impl Editor {
         } else {
             self.draw_rows();
             self.draw_status_bar();
-            // self.draw_message_bar();
+            self.draw_message_bar();
             //now the cursor position refers to the position the cursor is in the file, we need to normalize it by sub the offset
             Terminal::cursor_position(&Position {
                 x: self.cursor_position.x.saturating_sub(self.offset.x),
@@ -133,9 +133,9 @@ impl Editor {
             filename.truncate(20);
         }
 
-        status = format!("{}-{} lines", filename, self.document.len());
+        status = format!("{} - {} lines", filename, self.document.len());
         let line_indicator = format!(
-            "{}-{}",
+            "{}/{}",
             self.cursor_position.y.saturating_add(1),
             self.document.len()
         );
@@ -148,7 +148,7 @@ impl Editor {
         status.truncate(width);
         Terminal::set_bg_color(STATUS_BG_COLOR);
         Terminal::set_fg_color(STATUS_FG_COLOR);
-        println!("{}", status);
+        println!("{}\r", status);
         Terminal::reset_fg_color();
         Terminal::reset_bg_color()
     }
