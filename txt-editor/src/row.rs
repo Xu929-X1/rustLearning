@@ -74,4 +74,9 @@ impl Row {
     pub fn update_len(&mut self) {
         self.len = self.string[..].graphemes(true).count();
     }
+
+    pub fn append(&mut self, new: &Self){
+        self.string = format!("{}{}", self.string, new.string);
+        self.update_len();
+    }
 }
