@@ -29,7 +29,7 @@ pub struct Editor {
     cursor_position: Position,
     document: Document,
     offset: Position,
-    status_message: StatusMessage
+    status_message: StatusMessage,
 }
 #[derive(Default)]
 pub struct Position {
@@ -38,7 +38,6 @@ pub struct Position {
 }
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 
 impl Editor {
     pub fn run(&mut self) {
@@ -62,13 +61,13 @@ impl Editor {
         let document = if args.len() > 1 {
             let filename = &args[1];
             let doc = Document::open(filename);
-            if doc.is_ok(){
+            if doc.is_ok() {
                 doc.unwrap()
-            }else{
+            } else {
                 init_status = format!("Error: Could not open file {}", &filename);
                 Document::default()
             }
-        }else{
+        } else {
             Document::default()
         };
 
@@ -78,7 +77,7 @@ impl Editor {
             cursor_position: Position::default(),
             document: document,
             offset: Position::default(),
-            status_message: StatusMessage::from(init_status)
+            status_message: StatusMessage::from(init_status),
         }
     }
 
@@ -156,12 +155,11 @@ impl Editor {
     fn draw_message_bar(&self) {
         Terminal::clear_row();
         let message = &self.status_message;
-        if Instant::now() - message.time < Duration::new(5, 0){
+        if Instant::now() - message.time < Duration::new(5, 0) {
             let mut text = message.text.clone();
             text.truncate(self.terminal.size().width as usize);
             print!("{}", text);
         }
-
     }
 
     fn draw_welcome_message(&self) {
@@ -179,24 +177,26 @@ impl Editor {
         let pressed_key = Terminal::read_key()?;
         match pressed_key {
             Key::Ctrl('q') => self.should_quit = true,
-            Key::Ctrl('s') =>{
-                if self.document.save().is_ok(){
-                    self.status_message = StatusMessage::from("File saved successfully".to_string());
-                }else{
+            Key::Ctrl('s') => {
+                if self.document.save().is_err() {
+                } else if self.document.save().is_ok() {
+                    self.status_message =
+                        StatusMessage::from("File saved successfully".to_string());
+                } else {
                     self.status_message = StatusMessage::from("Unable to save file".to_string());
                 }
-            },
-            Key::Char(c)=>{
+            }
+            Key::Char(c) => {
                 self.document.insert(&self.cursor_position, c);
                 self.move_cursor(Key::Right);
-            },
-            Key::Delete=>self.document.delete(&self.cursor_position),
-            Key::Backspace=>{
+            }
+            Key::Delete => self.document.delete(&self.cursor_position),
+            Key::Backspace => {
                 if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
                     self.move_cursor(Key::Left);
                     self.document.delete(&self.cursor_position);
                 }
-            },
+            }
             Key::Up
             | Key::Down
             | Key::Right
