@@ -55,9 +55,8 @@ fn main() {
                             }
                         }
                     }
-                    
                 }
-                token if event.readiness().is_readable() => {
+                token if event.is_readable() => {
                     loop {
                         let read = sockets.get_mut(&token).unwrap().read(&mut buffer);
                         match read {
@@ -76,9 +75,8 @@ fn main() {
                             Err(e) => panic!("Unexpected error: {}", e),
                         }
                     }
-
                 }
-                token if event.readiness().is_writable() => {
+                token if event.is_writable() => {
                     let n_bytes = response[&token];
                     let message = format!("Received {} bytes of data", n_bytes);
                     sockets
